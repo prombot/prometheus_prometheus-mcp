@@ -5,7 +5,7 @@ After=network.target
 
 [Service]
 DynamicUser=true
-ExecStart=/usr/bin/prometheus-mcp-server
+ExecStart=/usr/bin/prometheus-mcp --mcp.transport=http
 Restart=on-failure
 KillSignal=SIGINT
 
