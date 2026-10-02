@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: prometheus-mcp-server
+  name: prometheus-mcp
   namespace: default
   labels:
-    app: prometheus-mcp-server
+    app: prometheus-mcp
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: prometheus-mcp-server
+      app: prometheus-mcp
   template:
     metadata:
       labels:
-        app: prometheus-mcp-server
+        app: prometheus-mcp
     spec:
       containers:
-      - name: prometheus-mcp-server
+      - name: prometheus-mcp
         image: ghcr.io/tjhop/prometheus-mcp-server:latest
         args:
         - '--prometheus.url=http://prometheus-service.prometheus.svc:9090' # set your prometheus url here
