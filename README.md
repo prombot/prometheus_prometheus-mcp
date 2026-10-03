@@ -125,7 +125,7 @@ Additional tools can be specified with the [`--mcp.tools` flag](#command-line-fl
 For example, the command line:
 
 ```shell
-prometheus-mcp-server --mcp.tools=build_info --mcp.tools=flags --mcp.tools=runtime_info
+prometheus-mcp --mcp.tools=build_info --mcp.tools=flags --mcp.tools=runtime_info
 ```
 
 Would result in the following tools being loaded:
@@ -229,14 +229,18 @@ MCP has deprecated this feature. It keeps working during the deprecation window,
 
 ### Binary
 Download a release appropriate for your system from the [Releases](https://github.com/prometheus/prometheus-mcp/releases) page.
+The commands below are for v0.19.0 and later; see the upgrade note below for earlier releases.
 Please see [Flags](#command-line-flags) for more information on the available flags and their corresponding environment variables.
 
 ```shell
-/path/to/prometheus-mcp-server <flags>
+/path/to/prometheus-mcp <flags>
 
 # or using env vars
-PROMETHEUS_MCP_SERVER_PROMETHEUS_URL="https://$yourPrometheus:9090" /path/to/prometheus-mcp-server
+PROMETHEUS_MCP_PROMETHEUS_URL="https://$yourPrometheus:9090" /path/to/prometheus-mcp
 ```
+
+_Upgrading from v0.18.0 or earlier_: as of v0.19.0 the binary is named `prometheus-mcp` (previously `prometheus-mcp-server`), and its environment variables use the `PROMETHEUS_MCP_` prefix instead of `PROMETHEUS_MCP_SERVER_`.
+The old variable names are ignored without an error, so rename them when you upgrade.
 
 ### Docker
 Please see [Flags](#command-line-flags) for more information on the available flags and their corresponding environment variables.
@@ -276,18 +280,24 @@ If you prefer deploying without Helm, example Kubernetes manifests are available
 - [Kubernetes Deployment](./examples/k8s-deployment.yml)
 - [OpenShift Deployment](./examples/openshift-deployment.yml)
 
-### System Packages
-Download a release appropriate for your system from the [Releases](https://github.com/prometheus/prometheus-mcp/releases) page. A Systemd service file is included in the system packages that are built.
+### Tarball with Systemd
+Download the latest release tarball for your system from the [Releases](https://github.com/prometheus/prometheus-mcp/releases) page. Tarballs include the binary and a Systemd service file.
+The unit runs the HTTP transport on `:8080` against the default `--prometheus.url` (`http://127.0.0.1:9090`); set other flags through their environment variables in the override, for example `Environment=PROMETHEUS_MCP_PROMETHEUS_URL=https://prometheus.example.com:9090`.
 
 ```shell
-# install system package (example assuming Debian based)
-apt install /path/to/package
-# create unit override, add any needed flags or environment variables
-systemctl edit prometheus-mcp-server.service
-systemctl enable --now prometheus-mcp-server.service
+# extract the tarball and install the binary and unit file
+# (<version> has no leading `v`, e.g. prometheus-mcp-0.19.0.linux-amd64.tar.gz)
+tar -xzf prometheus-mcp-<version>.<os>-<arch>.tar.gz
+cd prometheus-mcp-<version>.<os>-<arch>
+install -m 0755 prometheus-mcp /usr/bin/prometheus-mcp
+install -m 0644 prometheus-mcp.service /etc/systemd/system/
+# create unit override and set any needed environment variables
+systemctl edit prometheus-mcp.service
+systemctl enable --now prometheus-mcp.service
 ```
 
-_Note_: While packages are built for several systems, there are currently no plans to attempt to submit packages to upstream package repositories.
+_Note_: As of v0.19.0, releases no longer include system packages (deb, rpm, or Arch Linux `.pkg.tar.zst`); use the tarball instead.
+Packages for v0.18.0 and earlier remain available on their release pages.
 
 ## Security and Authentication
 ### Connecting to Secure Prometheus Instances
