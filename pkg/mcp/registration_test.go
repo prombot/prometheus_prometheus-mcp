@@ -128,11 +128,9 @@ func TestGetToolset(t *testing.T) {
 		require.Contains(t, names, "list_stores")
 
 		// Prometheus-only tools should NOT be present.
-		require.NotContains(t, names, "alertmanagers")
-		require.NotContains(t, names, "config")
-		require.NotContains(t, names, "wal_replay_status")
-		require.NotContains(t, names, "reload")
-		require.NotContains(t, names, "quit")
+		for _, tool := range thanosRemovedTools {
+			require.NotContains(t, names, tool)
+		}
 
 		// Shared tools should still be present.
 		require.Contains(t, names, "query")
@@ -263,6 +261,7 @@ func TestToolsetContents(t *testing.T) {
 		prometheusOnly := []string{
 			"alertmanagers",
 			"config",
+			"targets_metadata",
 			"wal_replay_status",
 			"reload",
 			"quit",
