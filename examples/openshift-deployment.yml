@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: prometheus-mcp-server
+  name: prometheus-mcp
   namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: prometheus-mcp-server
+  name: prometheus-mcp
 subjects:
   - kind: ServiceAccount
-    name: prometheus-mcp-server
+    name: prometheus-mcp
     namespace: default
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -20,23 +20,23 @@ roleRef:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: prometheus-mcp-server
+  name: prometheus-mcp
   namespace: default
   labels:
-    app: prometheus-mcp-server
+    app: prometheus-mcp
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: prometheus-mcp-server
+      app: prometheus-mcp
   template:
     metadata:
       labels:
-        app: prometheus-mcp-server
+        app: prometheus-mcp
     spec:
-      serviceAccountName: prometheus-mcp-server
+      serviceAccountName: prometheus-mcp
       containers:
-        - name: prometheus-mcp-server
+        - name: prometheus-mcp
           image: ghcr.io/tjhop/prometheus-mcp-server:latest
           args:
             - '--prometheus.url=https://thanos-querier.openshift-monitoring.svc:9091'
@@ -56,23 +56,23 @@ spec:
       volumes:
         - name: configs
           configMap:
-            name: prometheus-mcp-server
+            name: prometheus-mcp
         - name: certs
           secret:
-            secretName: prometheus-mcp-server-tls
+            secretName: prometheus-mcp-tls
 ---
 kind: Service
 apiVersion: v1
 metadata:
-  name: prometheus-mcp-server
+  name: prometheus-mcp
   namespace: default
   labels:
-    app: prometheus-mcp-server
+    app: prometheus-mcp
   annotations:
-    service.beta.openshift.io/serving-cert-secret-name: prometheus-mcp-server-tls
+    service.beta.openshift.io/serving-cert-secret-name: prometheus-mcp-tls
 spec:
   selector:
-    app: prometheus-mcp-server
+    app: prometheus-mcp
   ports:
     - port: 8080
       protocol: TCP
@@ -80,10 +80,10 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: prometheus-mcp-server
+  name: prometheus-mcp
   namespace: default
   labels:
-    app: prometheus-mcp-server
+    app: prometheus-mcp
 data:
   prom-config.yaml: |
     # Prometheus HTTP config file

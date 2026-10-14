@@ -1,10 +1,9 @@
 # Prometheus MCP Server
 
-[![license](https://img.shields.io/github/license/tjhop/prometheus-mcp-server)](https://github.com/tjhop/prometheus-mcp-server/blob/master/LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/tjhop/prometheus-mcp-server)](https://goreportcard.com/report/github.com/tjhop/prometheus-mcp-server)
-[![golangci-lint](https://github.com/tjhop/prometheus-mcp-server/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/tjhop/prometheus-mcp-server/actions/workflows/golangci-lint.yml)
-[![Latest Release](https://img.shields.io/github/v/release/tjhop/prometheus-mcp-server)](https://github.com/tjhop/prometheus-mcp-server/releases/latest)
-[![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/tjhop/prometheus-mcp-server/total)](https://github.com/tjhop/prometheus-mcp-server/releases/latest)
+[![license](https://img.shields.io/github/license/prometheus/prometheus-mcp)](https://github.com/prometheus/prometheus-mcp/blob/main/LICENSE)
+[![golangci-lint](https://github.com/prometheus/prometheus-mcp/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/prometheus/prometheus-mcp/actions/workflows/golangci-lint.yml)
+[![Latest Release](https://img.shields.io/github/v/release/prometheus/prometheus-mcp)](https://github.com/prometheus/prometheus-mcp/releases/latest)
+[![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/prometheus/prometheus-mcp/total)](https://github.com/prometheus/prometheus-mcp/releases/latest)
 
 ![Prometheus MCP Server Logo](images/logo-small.png)
 
@@ -126,7 +125,7 @@ Additional tools can be specified with the [`--mcp.tools` flag](#command-line-fl
 For example, the command line:
 
 ```shell
-prometheus-mcp-server --mcp.tools=build_info --mcp.tools=flags --mcp.tools=runtime_info
+prometheus-mcp --mcp.tools=build_info --mcp.tools=flags --mcp.tools=runtime_info
 ```
 
 Would result in the following tools being loaded:
@@ -229,15 +228,19 @@ What follows from that:
 MCP has deprecated this feature. It keeps working during the deprecation window, but what a client receives is up to the client: newer clients must ask for a log level, and older clients over HTTP get `info` and above.
 
 ### Binary
-Download a release appropriate for your system from the [Releases](https://github.com/tjhop/prometheus-mcp-server/releases) page.
+Download a release appropriate for your system from the [Releases](https://github.com/prometheus/prometheus-mcp/releases) page.
+The commands below are for v0.19.0 and later; see the upgrade note below for earlier releases.
 Please see [Flags](#command-line-flags) for more information on the available flags and their corresponding environment variables.
 
 ```shell
-/path/to/prometheus-mcp-server <flags>
+/path/to/prometheus-mcp <flags>
 
 # or using env vars
-PROMETHEUS_MCP_SERVER_PROMETHEUS_URL="https://$yourPrometheus:9090" /path/to/prometheus-mcp-server
+PROMETHEUS_MCP_PROMETHEUS_URL="https://$yourPrometheus:9090" /path/to/prometheus-mcp
 ```
+
+_Upgrading from v0.18.0 or earlier_: as of v0.19.0 the binary is named `prometheus-mcp` (previously `prometheus-mcp-server`), and its environment variables use the `PROMETHEUS_MCP_` prefix instead of `PROMETHEUS_MCP_SERVER_`.
+The old variable names are ignored without an error, so rename them when you upgrade.
 
 ### Docker
 Please see [Flags](#command-line-flags) for more information on the available flags and their corresponding environment variables.
@@ -277,18 +280,24 @@ If you prefer deploying without Helm, example Kubernetes manifests are available
 - [Kubernetes Deployment](./examples/k8s-deployment.yml)
 - [OpenShift Deployment](./examples/openshift-deployment.yml)
 
-### System Packages
-Download a release appropriate for your system from the [Releases](https://github.com/tjhop/prometheus-mcp-server/releases) page. A Systemd service file is included in the system packages that are built.
+### Tarball with Systemd
+Download the latest release tarball for your system from the [Releases](https://github.com/prometheus/prometheus-mcp/releases) page. Tarballs include the binary and a Systemd service file.
+The unit runs the HTTP transport on `:8080` against the default `--prometheus.url` (`http://127.0.0.1:9090`); set other flags through their environment variables in the override, for example `Environment=PROMETHEUS_MCP_PROMETHEUS_URL=https://prometheus.example.com:9090`.
 
 ```shell
-# install system package (example assuming Debian based)
-apt install /path/to/package
-# create unit override, add any needed flags or environment variables
-systemctl edit prometheus-mcp-server.service
-systemctl enable --now prometheus-mcp-server.service
+# extract the tarball and install the binary and unit file
+# (<version> has no leading `v`, e.g. prometheus-mcp-0.19.0.linux-amd64.tar.gz)
+tar -xzf prometheus-mcp-<version>.<os>-<arch>.tar.gz
+cd prometheus-mcp-<version>.<os>-<arch>
+install -m 0755 prometheus-mcp /usr/bin/prometheus-mcp
+install -m 0644 prometheus-mcp.service /etc/systemd/system/
+# create unit override and set any needed environment variables
+systemctl edit prometheus-mcp.service
+systemctl enable --now prometheus-mcp.service
 ```
 
-_Note_: While packages are built for several systems, there are currently no plans to attempt to submit packages to upstream package repositories.
+_Note_: As of v0.19.0, releases no longer include system packages (deb, rpm, or Arch Linux `.pkg.tar.zst`); use the tarball instead.
+Packages for v0.18.0 and earlier remain available on their release pages.
 
 ## Security and Authentication
 ### Connecting to Secure Prometheus Instances
@@ -338,7 +347,7 @@ Please see [Flags](#command-line-flags) for more information on how to change th
 
 | Metric name | Type | Description | Labels |
 | --- | --- | --- | --- |
-| `prom_mcp_build_info` | `Gauge` | A metric with a constant '1' value with labels for version, commit and build_date from which prometheus-mcp-server was built. | `version`, `commit`, `build_date`, `goversion` |
+| `prom_mcp_build_info` | `Gauge` | A metric with a constant '1' value with labels for version, commit and build_date from which prometheus-mcp was built. | `version`, `commit`, `build_date`, `goversion` |
 | `prom_mcp_server_ready` | `Gauge` | Info metric with a static '1' if the MCP server is ready, and '0' otherwise. | |
 | `prom_mcp_api_calls_failed_total` | `Counter` | Total number of Prometheus API failures, per endpoint. | `target_path` |
 | `prom_mcp_api_call_duration_seconds` | `Histogram` | Duration of Prometheus API calls, per endpoint, in seconds. | `target_path` |
@@ -399,7 +408,7 @@ make mcphost
 </details>
 
 ### Gemini with gemini-cli
-See [`settings.json`](./examples/.gemini/settings.json) for an example config file to run gemini-cli with the prometheus-mcp-server.
+See [`settings.json`](./examples/.gemini/settings.json) for an example config file to run gemini-cli with prometheus-mcp.
 Requires [gemini-cli](https://github.com/google-gemini/gemini-cli) to be installed. 
 
 <details>
@@ -449,11 +458,11 @@ Project targets:
   helm-lint                      run helm chart linting
   helm-template                  render helm templates for inspection
   helm-test                      install helm chart and run tests (requires a running cluster)
-  mcphost                        use mcphost to run the prometheus-mcp-server against a local ollama model
-  inspector                      use inspector to run the prometheus-mcp-server in STDIO transport mode
-  inspector-http                 use inspector to run the prometheus-mcp-server in streamable HTTP transport mode
-  open-webui                     use open-webui to run the prometheus-mcp-server
-  gemini                         use gemini-cli to run the prometheus-mcp-server against Google Gemini models
+  mcphost                        use mcphost to run the prometheus-mcp against a local ollama model
+  inspector                      use inspector to run the prometheus-mcp in STDIO transport mode
+  inspector-http                 use inspector to run the prometheus-mcp in streamable HTTP transport mode
+  open-webui                     use open-webui to run the prometheus-mcp
+  gemini                         use gemini-cli to run the prometheus-mcp against Google Gemini models
 ```
 ## Command Line Flags
 
