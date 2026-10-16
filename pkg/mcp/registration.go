@@ -263,15 +263,16 @@ func initPrometheusToolset() {
 }
 
 // thanosRemovedTools lists tools from prometheusToolset that Thanos does not support.
-var thanosRemovedTools = append(
+var thanosRemovedTools = slices.Concat(
 	PrometheusTsdbAdminTools,
 	[]string{
 		"alertmanagers",
 		"config",
+		"targets_metadata",
 		"wal_replay_status",
 		"reload",
 		"quit",
-	}...,
+	},
 )
 
 // initThanosToolset initializes the thanos toolset map. Called during

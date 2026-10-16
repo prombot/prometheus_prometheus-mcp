@@ -167,7 +167,7 @@ In general, this MCP server should at a minimum work for other prometheus API co
 Beyond that, there may be API differences as the different systems implement different parts/extensions of the API for their needs.
 
 Examples:
-- Thanos does not use a centralized config, so the config endpoint is not implemented and thus the config tool fails.
+- Thanos does not use a centralized config, so the config endpoint is not implemented and thus the config tool is removed.
 - Mimir and Cortex implement extra endpoints to manage/add/remove rules
 
 To workaround this and provide a better experience on some of the commonly used Prometheus compatible systems, this project may add direct support for select systems to provide different/more tools.
@@ -188,6 +188,7 @@ Qualifications and support criteria are still under consideration, please open a
 | [`thanos`](https://thanos.io/) | `quit` | remove | Thanos does not implement the endpoint and the tool returns a `404`. |
 | [`thanos`](https://thanos.io/) | `reload` | remove | Thanos does not implement the endpoint and the tool returns a `404`. |
 | [`thanos`](https://thanos.io/) | `snapshot` | remove | Prometheus TSDB admin endpoint |
+| [`thanos`](https://thanos.io/) | `targets_metadata` | remove | Thanos does not implement the endpoint and the tool returns a `404` ([thanos-io/thanos#7119](https://github.com/thanos-io/thanos/issues/7119)). |
 | [`thanos`](https://thanos.io/) | `wal_replay_status` | remove | Thanos does not implement the endpoint and the tool returns a `404`. |
 
 ### Resources
