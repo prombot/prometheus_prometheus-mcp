@@ -1,0 +1,17 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "limit": {
+      "description": "maximum number of search results to return",
+      "type": "integer"
+    },
+    "query": {
+      "description": "the query to search for in documentation",
+      "type": "string"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "type": "object"
+}

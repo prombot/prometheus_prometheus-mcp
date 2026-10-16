@@ -14,17 +14,24 @@
 package mcp
 
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
+	"flag"
 	"log/slog"
-	"maps"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/prometheus-mcp/pkg/mcp/mcptest"
 )
+
+var update = flag.Bool("update", false, "rewrite golden files under testdata")
+
+const schemaGoldenDir = "testdata/schemas"
 
 // getToolNames returns the names of all tools in a toolset map.
 // The returned slice is sorted for consistent comparison in tests.
@@ -296,22 +303,11 @@ func TestToolsetContents(t *testing.T) {
 	})
 }
 
-// TestToolInputSchemaProperties verifies that every tool's InputSchema
-// includes a "properties" key after full MCP registration. This is a
-// regression test for OpenAI API compatibility -- the OpenAI-compatible
-// endpoint requires all tool schemas to have "properties".
-//
-// The test registers all tools on a real in-memory MCP server and then
-// calls ListTools through the protocol, so it validates the *actual*
-// schemas that clients receive -- including any auto-generated fields
-// the SDK produces for tools that accept parameters, and any explicit
-// schemas set for parameter-less (EmptyInput) tools.
-//
-// It also verifies that no schema node declares "type" as an array, since
-// single-type dialects such as Gemini's reject them.
-//
-// See: https://github.com/prometheus/prometheus-mcp/issues/119
-func TestToolInputSchemaProperties(t *testing.T) {
+// TestToolInputSchemas verifies that every tool's input schema matches its
+// golden file at testdata/schemas/<tool>.json. The schemas come from ListTools
+// on an in-memory MCP server. Run `make update-golden` to regenerate the
+// golden files after changing a tool's input.
+func TestToolInputSchemas(t *testing.T) {
 	container := newTestContainer(nil)
 
 	toolsets := map[string]map[string]toolRegistration{
@@ -319,8 +315,9 @@ func TestToolInputSchemaProperties(t *testing.T) {
 		"thanos":     thanosToolset,
 	}
 
-	// Tools whose "matches" input is a []string.
-	matchesTools := []string{"series", "label_names", "label_values", "delete_series"}
+	if *update {
+		require.NoError(t, os.MkdirAll(schemaGoldenDir, 0o755))
+	}
 
 	for tsName, toolset := range toolsets {
 		t.Run(tsName, func(t *testing.T) {
@@ -335,58 +332,46 @@ func TestToolInputSchemaProperties(t *testing.T) {
 			require.Len(t, result.Tools, len(toolset), "registered tool count mismatch")
 
 			for _, tool := range result.Tools {
-				data, err := json.Marshal(tool.InputSchema)
-				require.NoErrorf(t, err, "%s/%s: failed to marshal InputSchema", tsName, tool.Name)
+				got := marshalGoldenSchema(t, tool.InputSchema)
+				path := filepath.Join(schemaGoldenDir, tool.Name+".json")
 
-				var schema map[string]any
-				err = json.Unmarshal(data, &schema)
-				require.NoErrorf(t, err, "%s/%s: failed to unmarshal InputSchema", tsName, tool.Name)
-
-				_, hasProperties := schema["properties"]
-				require.Truef(t, hasProperties, "%s/%s: InputSchema missing 'properties' key (required for OpenAI API compatibility)", tsName, tool.Name)
-
-				requireSingleTypeSchema(t, tsName+"/"+tool.Name, "(root)", schema)
-
-				if slices.Contains(matchesTools, tool.Name) {
-					props, _ := schema["properties"].(map[string]any)
-					matches, ok := props["matches"].(map[string]any)
-					require.Truef(t, ok, "%s/%s: InputSchema missing 'matches' property", tsName, tool.Name)
-					matches = maps.Clone(matches)
-					delete(matches, "description")
-					require.Equalf(t, map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, matches,
-						"%s/%s: unexpected 'matches' schema", tsName, tool.Name)
+				if *update {
+					require.NoError(t, os.WriteFile(path, got, 0o644))
+					continue
 				}
+
+				want, err := os.ReadFile(path)
+				require.NoErrorf(t, err, "%s/%s: reading golden file; regenerate with `make update-golden`", tsName, tool.Name)
+				require.Equalf(t, string(want), string(got), "%s/%s: input schema differs from %s; regenerate with `make update-golden`", tsName, tool.Name, path)
 			}
 		})
 	}
+
+	entries, err := os.ReadDir(schemaGoldenDir)
+	require.NoError(t, err)
+	for _, entry := range entries {
+		name := strings.TrimSuffix(entry.Name(), ".json")
+		_, inPrometheus := prometheusToolset[name]
+		_, inThanos := thanosToolset[name]
+		require.Truef(t, inPrometheus || inThanos, "%s/%s matches no registered tool; delete it", schemaGoldenDir, entry.Name())
+	}
 }
 
-// requireSingleTypeSchema fails if node or any schema nested under it declares
-// "type" as an array.
-func requireSingleTypeSchema(t *testing.T, tool, path string, node map[string]any) {
+// marshalGoldenSchema renders schema as indented JSON with sorted keys and a
+// trailing newline. HTML escaping is off so descriptions stay readable.
+func marshalGoldenSchema(t *testing.T, schema any) []byte {
 	t.Helper()
 
-	_, isArray := node["type"].([]any)
-	require.Falsef(t, isArray, "%s: %s has type %v; single-type schema dialects such as Gemini's reject type arrays, set the tool's InputSchema with inputSchemaFor", tool, path, node["type"])
+	data, err := json.Marshal(schema)
+	require.NoError(t, err)
 
-	if props, ok := node["properties"].(map[string]any); ok {
-		for name, prop := range props {
-			if sub, ok := prop.(map[string]any); ok {
-				requireSingleTypeSchema(t, tool, path+".properties."+name, sub)
-			}
-		}
-	}
-	for _, key := range []string{"items", "additionalProperties"} {
-		if sub, ok := node[key].(map[string]any); ok {
-			requireSingleTypeSchema(t, tool, path+"."+key, sub)
-		}
-	}
-	for _, key := range []string{"anyOf", "oneOf", "allOf"} {
-		subs, _ := node[key].([]any)
-		for i, s := range subs {
-			if sub, ok := s.(map[string]any); ok {
-				requireSingleTypeSchema(t, tool, fmt.Sprintf("%s.%s[%d]", path, key, i), sub)
-			}
-		}
-	}
+	var generic any
+	require.NoError(t, json.Unmarshal(data, &generic))
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	require.NoError(t, enc.Encode(generic))
+	return buf.Bytes()
 }

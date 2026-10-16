@@ -1,0 +1,13 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "file": {
+      "description": "the name of the documentation file to read",
+      "type": "string"
+    }
+  },
+  "required": [
+    "file"
+  ],
+  "type": "object"
+}

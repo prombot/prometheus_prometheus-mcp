@@ -1,0 +1,10 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "skip_head": {
+      "description": "skip data present in the head block",
+      "type": "boolean"
+    }
+  },
+  "type": "object"
+}

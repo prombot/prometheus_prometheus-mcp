@@ -1,0 +1,29 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "end_time": {
+      "description": "end timestamp for the query. Accepts: Unix epoch seconds, RFC3339, now, now-<duration>, now+<duration> (e.g. now-1h), or a duration string relative to now (e.g. 5m, 1h30m, etc). Defaults to current time.",
+      "type": "string"
+    },
+    "query": {
+      "description": "the PromQL query to execute",
+      "type": "string"
+    },
+    "start_time": {
+      "description": "start timestamp for the query. Accepts: Unix epoch seconds, RFC3339, now, now-<duration>, now+<duration> (e.g. now-1h), or a duration string relative to now (e.g. 5m, 1h30m, etc). Defaults to 5m ago.",
+      "type": "string"
+    },
+    "step": {
+      "description": "query resolution step width in Go duration format (e.g. '30s', '5m', '1h'), auto-set if unspecified",
+      "type": "string"
+    },
+    "truncation_limit": {
+      "description": "truncation limit for query response in number of lines/entries; use lower limits (e.g. 50-100) for initial exploration, set to -1 to disable truncation",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "type": "object"
+}

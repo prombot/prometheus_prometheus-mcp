@@ -55,6 +55,10 @@ crossbuild: docs promu
 .PHONY: test
 test: docs common-test
 
+.PHONY: update-golden
+update-golden: ## regenerate golden test fixtures under pkg/mcp/testdata
+	$(GOTEST) ./pkg/mcp -update
+
 .PHONY: helm-sync-dashboards
 helm-sync-dashboards: ## copy grafana dashboards into helm chart for packaging
 	mkdir -p charts/prometheus-mcp-server/dashboards
