@@ -1,0 +1,13 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "description": "the skill name of the runbook to read, as returned by runbooks_list (e.g. investigate-error-rates)",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "type": "object"
+}

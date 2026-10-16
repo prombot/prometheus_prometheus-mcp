@@ -14,15 +14,24 @@
 package mcp
 
 import (
+	"bytes"
 	"encoding/json"
+	"flag"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/prometheus-mcp/pkg/mcp/mcptest"
 )
+
+var update = flag.Bool("update", false, "rewrite golden files under testdata")
+
+const schemaGoldenDir = "testdata/schemas"
 
 // getToolNames returns the names of all tools in a toolset map.
 // The returned slice is sorted for consistent comparison in tests.
@@ -293,24 +302,20 @@ func TestToolsetContents(t *testing.T) {
 	})
 }
 
-// TestToolInputSchemaProperties verifies that every tool's InputSchema
-// includes a "properties" key after full MCP registration. This is a
-// regression test for OpenAI API compatibility -- the OpenAI-compatible
-// endpoint requires all tool schemas to have "properties".
-//
-// The test registers all tools on a real in-memory MCP server and then
-// calls ListTools through the protocol, so it validates the *actual*
-// schemas that clients receive -- including any auto-generated fields
-// the SDK produces for tools that accept parameters, and any explicit
-// schemas set for parameter-less (EmptyInput) tools.
-//
-// See: https://github.com/prometheus/prometheus-mcp/issues/119
-func TestToolInputSchemaProperties(t *testing.T) {
+// TestToolInputSchemas verifies that every tool's input schema matches its
+// golden file at testdata/schemas/<tool>.json. The schemas come from ListTools
+// on an in-memory MCP server. Run `make update-golden` to regenerate the
+// golden files after changing a tool's input.
+func TestToolInputSchemas(t *testing.T) {
 	container := newTestContainer(nil)
 
 	toolsets := map[string]map[string]toolRegistration{
 		"prometheus": prometheusToolset,
 		"thanos":     thanosToolset,
+	}
+
+	if *update {
+		require.NoError(t, os.MkdirAll(schemaGoldenDir, 0o755))
 	}
 
 	for tsName, toolset := range toolsets {
@@ -326,16 +331,46 @@ func TestToolInputSchemaProperties(t *testing.T) {
 			require.Len(t, result.Tools, len(toolset), "registered tool count mismatch")
 
 			for _, tool := range result.Tools {
-				data, err := json.Marshal(tool.InputSchema)
-				require.NoErrorf(t, err, "%s/%s: failed to marshal InputSchema", tsName, tool.Name)
+				got := marshalGoldenSchema(t, tool.InputSchema)
+				path := filepath.Join(schemaGoldenDir, tool.Name+".json")
 
-				var schema map[string]any
-				err = json.Unmarshal(data, &schema)
-				require.NoErrorf(t, err, "%s/%s: failed to unmarshal InputSchema", tsName, tool.Name)
+				if *update {
+					require.NoError(t, os.WriteFile(path, got, 0o644))
+					continue
+				}
 
-				_, hasProperties := schema["properties"]
-				require.Truef(t, hasProperties, "%s/%s: InputSchema missing 'properties' key (required for OpenAI API compatibility)", tsName, tool.Name)
+				want, err := os.ReadFile(path)
+				require.NoErrorf(t, err, "%s/%s: reading golden file; regenerate with `make update-golden`", tsName, tool.Name)
+				require.Equalf(t, string(want), string(got), "%s/%s: input schema differs from %s; regenerate with `make update-golden`", tsName, tool.Name, path)
 			}
 		})
 	}
+
+	entries, err := os.ReadDir(schemaGoldenDir)
+	require.NoError(t, err)
+	for _, entry := range entries {
+		name := strings.TrimSuffix(entry.Name(), ".json")
+		_, inPrometheus := prometheusToolset[name]
+		_, inThanos := thanosToolset[name]
+		require.Truef(t, inPrometheus || inThanos, "%s/%s matches no registered tool; delete it", schemaGoldenDir, entry.Name())
+	}
+}
+
+// marshalGoldenSchema renders schema as indented JSON with sorted keys and a
+// trailing newline. HTML escaping is off so descriptions stay readable.
+func marshalGoldenSchema(t *testing.T, schema any) []byte {
+	t.Helper()
+
+	data, err := json.Marshal(schema)
+	require.NoError(t, err)
+
+	var generic any
+	require.NoError(t, json.Unmarshal(data, &generic))
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	require.NoError(t, enc.Encode(generic))
+	return buf.Bytes()
 }

@@ -1,0 +1,18 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "limit": {
+      "description": "maximum number of targets to match",
+      "type": "string"
+    },
+    "match_target": {
+      "description": "label selectors to match targets, all targets if empty",
+      "type": "string"
+    },
+    "metric": {
+      "description": "metric name to retrieve metadata for, all metrics if empty",
+      "type": "string"
+    }
+  },
+  "type": "object"
+}

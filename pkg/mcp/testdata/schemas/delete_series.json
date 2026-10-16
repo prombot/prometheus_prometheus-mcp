@@ -1,0 +1,24 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "end_time": {
+      "description": "end timestamp for the query. Accepts: Unix epoch seconds, RFC3339, now, now-<duration>, now+<duration> (e.g. now-1h), or a duration string relative to now (e.g. 5m, 1h30m, etc). Defaults to current time.",
+      "type": "string"
+    },
+    "matches": {
+      "description": "series selector arguments for series to delete,required",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "start_time": {
+      "description": "start timestamp for the query. Accepts: Unix epoch seconds, RFC3339, now, now-<duration>, now+<duration> (e.g. now-1h), or a duration string relative to now (e.g. 5m, 1h30m, etc). Defaults to 5m ago.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "matches"
+  ],
+  "type": "object"
+}

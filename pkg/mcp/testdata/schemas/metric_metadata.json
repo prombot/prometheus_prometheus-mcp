@@ -1,0 +1,14 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "limit": {
+      "description": "maximum number of metrics to return",
+      "type": "string"
+    },
+    "metric": {
+      "description": "metric name to retrieve metadata for, all metrics if empty",
+      "type": "string"
+    }
+  },
+  "type": "object"
+}

@@ -21,6 +21,7 @@ Things CI enforces that are easy to miss locally:
 - **The docs embed.** `cmd/prometheus-mcp/main.go` declares `//go:embed all:external/docs`, and that directory is *gitignored* — `make docs` populates it from a pinned `prometheus/docs` tarball (`DOCS_VERSION` in the `Makefile`). On a fresh clone, raw `go build ./...` / `go test ./...` fails with a "no matching files" embed error; run any make build/test target once and raw `go` commands work from then on (package-scoped commands like `go test ./pkg/mcp/` don't need the snapshot at all).
 - **License headers.** Every source file needs the Apache-2.0 header (`check_license` runs as part of bare `make`). Copy it from any existing `.go` file when creating a new one.
 - **No drift.** CI runs `make` and then `git diff --exit-code` — un-tidied `go.mod`/`go.sum` or anything else the build regenerates must be committed.
+- **Golden tool schemas.** `TestToolInputSchemas` compares every tool's ListTools input schema byte for byte against `pkg/mcp/testdata/schemas/<tool>.json`. Any change to an input struct, a `jsonschema` tag, or a tool's `InputSchema` fails the test until you run `make update-golden` and commit the fixtures. Read that diff before committing it — it is exactly what LLM clients receive. A `"type": [` appearing in a fixture means a nullable slice crept back in (wrap the input with `inputSchemaFor`). A go-sdk or jsonschema-go bump that changes inferred output fails the test too; regenerate on that PR and review the diff rather than merging red.
 - golangci-lint (version taken from `make print-golangci-lint-version`) and `govulncheck` also gate PRs.
 - The Go version is pinned in three places — `go.mod`, `.promu.yml`, and the builder image in `ci.yml`. Bump them together.
 
@@ -38,7 +39,7 @@ Things CI enforces that are easy to miss locally:
 2. **Tool definition** in `tools.go`: `*mcp.Tool` with `Annotations.ReadOnlyHint` *or* `Annotations.DestructiveHint` (use the `ptr(true)` helper). Zero-input tools use `InputSchema: emptyInputSchema`, not the SDK's `EmptyInput` — OpenAI strict-schema workaround, see [#119](https://github.com/prometheus/prometheus-mcp/issues/119).
 3. **Handler** method on `*ServerContainer` in `handlers.go`, signature `(ctx, req, input) (*mcp.CallToolResult, any, error)`. Get clients via `s.GetAPIClient(ctx)` — see the HTTP plumbing gotcha below; never reach for default client/transport fields directly.
 4. **Register** in `initPrometheusToolset()` in `registration.go`; add the tool's name to `thanosRemovedTools` if Thanos doesn't support it. Leave `CoreTools` alone unless the tool must load even when `--mcp.tools` is narrowed.
-5. **Test** in `handlers_test.go`: `api_mock_test.go` has the mock Prometheus, and `mcptest.NewTestServer` provides an in-memory client↔server MCP session. `registration_test.go` pins expected toolset contents — update its expectations whenever tools are added or removed.
+5. **Test** in `handlers_test.go`: `api_mock_test.go` has the mock Prometheus, and `mcptest.NewTestServer` provides an in-memory client↔server MCP session. `registration_test.go` pins expected toolset contents — update its expectations whenever tools are added or removed. Run `make update-golden` to create `testdata/schemas/<name>.json` and check the generated schema in with the tool.
 6. Update the tool table in `README.md`.
 
 ## Gotchas
